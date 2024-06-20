@@ -24,6 +24,8 @@ namespace code
 
         [Range(0, 10)] public float velocityProportion = 0.5f;
 
+        [Range(2, 20)] public int characterRewardCardWeights = 2;
+
         [Range(10, 800)] public int normalBallRandomlyCountMin = 20;
         [Range(10, 1000)] public int normalBallRandomlyCountMax = 800;
         
@@ -33,6 +35,8 @@ namespace code
         [Range(1, 4)] public float characterBallRadius = 2;
 
         [Range(2,20)] public int playerTryTimes = 10;
+
+        [Range(0.1f, 1.0f)] public float aiThinkCoefficient = 0.9f;
         
         public Color playerBallColor = Color.red;
         public Color aiBallColor = Color.blue;

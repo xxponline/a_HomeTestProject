@@ -6,6 +6,34 @@ using Random = UnityEngine.Random;
 
 namespace code
 {
+    public enum CharacterBallType
+    {
+        Player,
+        AI
+    }
+    
+    public interface IPointCheckInformationView
+    {
+        public int RewardBallCount { get; }
+        public int EarnedPoints { get; }
+        public int LostPoints { get; }
+    }
+    
+    public class PointCheckInformation : IPointCheckInformationView
+    {
+        public int RewardBallCount { get; set; }
+        public int EarnedPoints { get; set; }
+        public int LostPoints { get; set; }
+
+        public void Clear()
+        {
+            RewardBallCount = 0;
+            EarnedPoints = 0;
+            LostPoints = 0;
+        }
+    }
+    
+    
     /// <summary>
     /// Game Yard
     /// Pay attention: Now The GameYard Always on the X-Z plane (y = 0);
@@ -85,8 +113,8 @@ namespace code
 
         public void CreateNormalBall()
         {
-            RewardBallCount = EarnedPoints = 0;
-            LostPoints = 0;
+            _playerPointsInfo.Clear();
+            _aiPointsInfo.Clear();
             
             var profs = GlobalProfs.GetInstance();
             var pawnCount = Random.Range(profs.normalBallRandomlyCountMin, profs.normalBallRandomlyCountMax);
@@ -99,8 +127,17 @@ namespace code
             var randomlySpawnZMin = gameYard.ZMin + profs.characterBallRadius;
 
             DeckOfCards<ColorCard> colorCards = new DeckOfCards<ColorCard>();
-            colorCards.PutInCard(new ColorCard(ColorCardRewardType.Player, profs.playerBallColor));
-            colorCards.PutInCard(new ColorCard(ColorCardRewardType.AI, profs.aiBallColor));
+            for (var i = 0; i < profs.characterRewardCardWeights; ++i)
+            {
+                colorCards.PutInCard(new ColorCard(ColorCardRewardType.Player, profs.playerBallColor));
+            }
+            if (_aiBall != null)
+            {
+                for (var i = 0; i < profs.characterRewardCardWeights; ++i)
+                {
+                    colorCards.PutInCard(new ColorCard(ColorCardRewardType.AI, profs.aiBallColor));
+                }
+            }
             colorCards.PutInCard(profs.ballColorsSet.Select((m) => new ColorCard(ColorCardRewardType.None, m)));
             
             
@@ -150,9 +187,14 @@ namespace code
                 ball.transform.position = spawnPos;
                 ball.BallRadius = spawnRadius;
                 var card = colorCards.Deal();
-                if (card.RewardType == ColorCardRewardType.Player)
+                switch (card.RewardType)
                 {
-                    RewardBallCount++;
+                    case ColorCardRewardType.Player:
+                        _playerPointsInfo.RewardBallCount++;
+                        break;
+                    case ColorCardRewardType.AI:
+                        _aiPointsInfo.RewardBallCount++;
+                        break;
                 }
                 ball.BallRewardType = card.RewardType;
                 ball.BallColor = card.BallColor;
@@ -172,12 +214,17 @@ namespace code
             }
         }
         
+        //Point Board
+        private PointCheckInformation _playerPointsInfo = new();
+        private PointCheckInformation _aiPointsInfo = new();
+
+        public IPointCheckInformationView PlayerPointsInfo => _playerPointsInfo;
+        public IPointCheckInformationView AIPointsInfo => _aiPointsInfo;
+        
+        
         //ball storage need refactoring to a QuadTree
         private readonly List<Ball> _allBalls = new(1002);
         private int _normalBallIndexStart = 1;
-        public int RewardBallCount { get; private set; } = 0;
-        public int EarnedPoints { get; private set; } = 0;
-        public int LostPoints { get; private set; } = 0;
         private Ball _playerBall;
         private Ball _aiBall;
 
@@ -188,6 +235,7 @@ namespace code
             playerBall.BallId = _allBalls.Count;
             _allBalls.Add(playerBall);
             playerBall.BallRadius = GlobalProfs.GetInstance().characterBallRadius;
+            playerBall.BallColor = GlobalProfs.GetInstance().playerBallColor;
             if (aiBall != null)
             {
                 playerBall.transform.position = new Vector3(XMax / 2, 0, 0);
@@ -197,6 +245,7 @@ namespace code
                 _allBalls.Add(aiBall);
                 aiBall.transform.position = new Vector3(XMin / 2, 0, 0);
                 aiBall.BallRadius = GlobalProfs.GetInstance().characterBallRadius;
+                aiBall.BallColor = GlobalProfs.GetInstance().aiBallColor;
 
                 _normalBallIndexStart = 2;
 
@@ -208,25 +257,47 @@ namespace code
             }
         }
 
-        public void PointCheck()
+        public void PointCheck(CharacterBallType characterBallType)
         {
+            var characterBall = characterBallType == CharacterBallType.Player ? _playerBall : _aiBall;
             for (var i = _normalBallIndexStart; i < _allBalls.Count; ++i)
             {
                 var ball = _allBalls[i];
-                if (GamePhysicsUtils.CheckLogicIntersect(ball, _playerBall))
+                if (GamePhysicsUtils.CheckLogicIntersect(ball, characterBall))
                 {
-                    if (ball.BallRewardType == ColorCardRewardType.Player)
+                    switch (characterBallType)
                     {
-                        EarnedPoints++;
+                        case CharacterBallType.Player:
+                            if (ball.BallRewardType == ColorCardRewardType.Player)
+                            {
+                                _playerPointsInfo.EarnedPoints++;
+                            }
+                            else
+                            {
+                                _playerPointsInfo.LostPoints++;
+                            }
+                            break;
+                        case CharacterBallType.AI:
+                            if (ball.BallRewardType == ColorCardRewardType.AI)
+                            {
+                                _aiPointsInfo.EarnedPoints++;
+                            }
+                            else
+                            {
+                                _aiPointsInfo.LostPoints++;
+                            }
+                            break;
                     }
-                    else
-                    {
-                        LostPoints++;
-                    }
+                    
                     ball.Dismiss();
                 }
             }
         }
-        
+
+        public IEnumerator<Ball> GetBAllEnumerator()
+        {
+            return _allBalls.GetEnumerator();
+        }
+
     }
 }

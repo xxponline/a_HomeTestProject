@@ -37,9 +37,14 @@ namespace code.UI
             OpenPauseMenu();
         }
 
-        public void RefreshPoint(int earnedPoints, int lostPoints)
+        public void RefreshPlayerPoints(int earnedPoints, int lostPoints)
         {
-            _mainUI.RefreshPoints(earnedPoints, lostPoints);
+            _mainUI.RefreshPlayerPoints(earnedPoints, lostPoints);
+        }
+
+        public void RefreshAIPoints(int earnedPoints, int lostPoints)
+        {
+            _mainUI.RefreshAIPoints(earnedPoints, lostPoints);
         }
 
         public void RefreshRound(int round)

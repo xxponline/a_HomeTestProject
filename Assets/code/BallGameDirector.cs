@@ -19,7 +19,6 @@ namespace code
         [NonSerialized] public BallPlayerController BallPlayerController;
         [NonSerialized] public BallAIController BallAIController;
 
-        private bool _isVictory = false;
         private int _maxRound = 10;
         private int _round = 0;
 
@@ -67,8 +66,6 @@ namespace code
             UIManager.GetInstance().RefreshRound(0);
             yield return null;
             //Init Game
-
-            _isVictory = false;
             
             //spawn Player
             var playerCharacter = Instantiate(playerCharacterAsset);
@@ -76,12 +73,12 @@ namespace code
             Debug.Assert(BallPlayerController);;
             
             //spawn AI
-            // if (aiCharacterAsset)
-            // {
-            //     var aiCharacter = Instantiate(aiCharacterAsset);
-            //     BallAIController = aiCharacter.GetComponent<BallAIController>();
-            //     Debug.Assert(BallAIController);
-            // }
+            if (aiCharacterAsset)
+            {
+                var aiCharacter = Instantiate(aiCharacterAsset);
+                BallAIController = aiCharacter.GetComponent<BallAIController>();
+                Debug.Assert(BallAIController);
+            }
             
             gameYard.PutCharacterBall(BallPlayerController.GetComponent<Ball>(), BallAIController?.GetComponent<Ball>());
             
@@ -98,12 +95,21 @@ namespace code
                 //
                 yield return BallPlayerController.DoPlayerAction();
                 //
-                gameYard.PointCheck();
-                UIManager.GetInstance().RefreshPoint(gameYard.EarnedPoints, gameYard.LostPoints);
-            } while (_round < _maxRound && gameYard.EarnedPoints < gameYard.RewardBallCount);
+                gameYard.PointCheck(CharacterBallType.Player);
+                UIManager.GetInstance().RefreshPlayerPoints(gameYard.PlayerPointsInfo.EarnedPoints, gameYard.PlayerPointsInfo.LostPoints);
+
+                if (BallAIController)
+                {
+                    yield return BallAIController.DoAIAction();
+                    gameYard.PointCheck(CharacterBallType.AI);
+                    UIManager.GetInstance().RefreshAIPoints(gameYard.AIPointsInfo.EarnedPoints, gameYard.AIPointsInfo.LostPoints);
+                }
+                
+                
+            } while (_round < _maxRound && gameYard.PlayerPointsInfo.EarnedPoints < gameYard.PlayerPointsInfo.RewardBallCount);
             
             //Vectory Show
-            UIManager.GetInstance().OpenVictory(gameYard.EarnedPoints, gameYard.RewardBallCount, _round);
+            UIManager.GetInstance().OpenVictory(gameYard.PlayerPointsInfo.EarnedPoints, gameYard.PlayerPointsInfo.RewardBallCount, _round);
             IsGameRunning = false;
         } 
     }
