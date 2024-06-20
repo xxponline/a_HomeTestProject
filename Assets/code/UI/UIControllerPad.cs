@@ -17,7 +17,7 @@ namespace code.UI
                     var playerBall = BallGameDirector.GetInstance().BallPlayerController.GetComponent<Ball>();
                     if (GamePhysicsUtils.CheckIntersect(checkRay, playerBall))
                     {
-                        Debug.Log("enter control");
+                        playerBall.GetComponent<BallPlayerController>().StartAim();
                         _controlling = true;
                     }
                 }
@@ -34,7 +34,6 @@ namespace code.UI
                 var playerBall = BallGameDirector.GetInstance().BallPlayerController.GetComponent<BallPlayerController>();
                 var controlAimPoint = GamePhysicsUtils.RayCastGameYard(checkRay, gameYard);
                 playerBall.DoMove(controlAimPoint);
-                Debug.Log("confirm control");
                 _controlling = false;
             }
         }
@@ -43,7 +42,11 @@ namespace code.UI
         {
             if (_controlling)
             {
-                
+                var checkRay = Camera.main!.ScreenPointToRay(eventData.position);
+                var gameYard = BallGameDirector.GetInstance().gameYard;
+                var playerBall = BallGameDirector.GetInstance().BallPlayerController.GetComponent<BallPlayerController>();
+                var controlAimPoint = GamePhysicsUtils.RayCastGameYard(checkRay, gameYard);
+                playerBall.PreviewMoveAction(controlAimPoint);
             }
         }
     }
