@@ -1,0 +1,7 @@
+# Unity
+*.csproj
+*.sln
+Library/
+Logs/
+obj/
+Packages/packages-lock.json
