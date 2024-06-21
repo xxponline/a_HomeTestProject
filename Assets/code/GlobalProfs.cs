@@ -37,6 +37,9 @@ namespace code
         [Range(2,20)] public int playerTryTimes = 10;
 
         [Range(0.1f, 1.0f)] public float aiThinkCoefficient = 0.9f;
+
+        [Range(2, 10)] public int maxQuadTreeDepth = 4;
+        [Range(5, 50)] public int recommendQuadTreeCapacity = 10;
         
         public Color playerBallColor = Color.red;
         public Color aiBallColor = Color.blue;

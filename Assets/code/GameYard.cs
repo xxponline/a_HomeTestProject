@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using code.QuadTree;
+using Unity.Profiling;
 using UnityEngine;
 using Random = UnityEngine.Random;
 
@@ -51,6 +53,8 @@ namespace code
         public float ZMax { get; private set; }
         public float ZMin { get; private set; }
 
+        private BallQuadTree _qTree;
+
         private void Awake()
         {
             Debug.Assert(transform.rotation == Quaternion.identity);
@@ -61,6 +65,11 @@ namespace code
 
             ZMax = transform.position.z + yardZLength / 2;
             ZMin = transform.position.z - yardZLength / 2;
+
+            _qTree = new BallQuadTree(GlobalProfs.GetInstance().maxQuadTreeDepth,
+                GlobalProfs.GetInstance().recommendQuadTreeCapacity,
+                new Vector3(XMin, 0, ZMin),
+                new Vector3(XMax, 0, XMax));
         }
 
 
@@ -109,12 +118,17 @@ namespace code
             }
 
             _allBalls.Clear();
+            _qTree.Clean();
         }
+        
+        private static readonly ProfilerMarker SCreateNormalBallMarker = new ProfilerMarker("GameYard.CreateNormalBall");
 
         public void CreateNormalBall()
         {
+            SCreateNormalBallMarker.Begin();
             _playerPointsInfo.Clear();
             _aiPointsInfo.Clear();
+            _qTree.Clean();
             
             var profs = GlobalProfs.GetInstance();
             var pawnCount = Random.Range(profs.normalBallRandomlyCountMin, profs.normalBallRandomlyCountMax);
@@ -150,6 +164,7 @@ namespace code
                 //To heavy need optimization (QTree)
                 Vector3 spawnPos;
                 float spawnRadius;
+                int errorTick = 0;
                 for(;;)
                 {
                     spawnPos = new Vector3(
@@ -160,26 +175,52 @@ namespace code
                     spawnRadius = Random.Range(profs.bollRandomlyRadiusMin, profs.bollRandomlyRadiusMax);
 
                     bool acceptableSpawn = true;
-                    foreach (var existBall in _allBalls)
+                    // foreach (var existBall in _allBalls)
+                    // {
+                    //     if (existBall.type == BallType.BallTypeCharacter)
+                    //     {
+                    //         if (GamePhysicsUtils.CheckLogicIntersect(existBall, spawnPos, profs.bollRandomlyRadiusMax))
+                    //         {
+                    //             acceptableSpawn = false;
+                    //             break;
+                    //         }
+                    //     }
+                    //     //check intersect by max radius to avoid recheck when breathing
+                    //     else if (GamePhysicsUtils.CheckLogicIntersect(existBall.LogicCentre, profs.bollRandomlyRadiusMax, spawnPos, profs.bollRandomlyRadiusMax))
+                    //     {
+                    //         acceptableSpawn = false;
+                    //         break;
+                    //     };
+                    // }
+
+                    do
                     {
-                        if (existBall.type == BallType.BallTypeCharacter)
-                        {
-                            if (GamePhysicsUtils.CheckLogicIntersect(existBall, spawnPos, profs.bollRandomlyRadiusMax))
-                            {
-                                acceptableSpawn = false;
-                                break;
-                            }
-                        }
-                        //check intersect by max radius to avoid recheck when breathing
-                        else if (GamePhysicsUtils.CheckLogicIntersect(existBall.LogicCentre, profs.bollRandomlyRadiusMax, spawnPos, profs.bollRandomlyRadiusMax))
+                        if (GamePhysicsUtils.CheckLogicIntersect(_playerBall, spawnPos, profs.bollRandomlyRadiusMax))
                         {
                             acceptableSpawn = false;
                             break;
-                        };
-                    }
+                        }
+
+                        if (_aiBall && GamePhysicsUtils.CheckLogicIntersect(_aiBall, spawnPos, profs.bollRandomlyRadiusMax))
+                        {
+                            acceptableSpawn = false;
+                            break;
+                        }
+
+                        acceptableSpawn = !_qTree.CheckIntersectingExist(spawnPos, profs.bollRandomlyRadiusMax);
+
+                    } while (false);
+                    
 
                     if (acceptableSpawn)
                     {
+                        break;
+                    }
+
+                    errorTick++;
+                    if (errorTick > 50000)
+                    {
+                        Debug.LogError("too hard to create enough normal ball");
                         break;
                     }
                 }
@@ -201,7 +242,9 @@ namespace code
                 
                 ball.BallId = _allBalls.Count;
                 _allBalls.Add(ball);
+                _qTree.AddBall(ball);
             }
+            SCreateNormalBallMarker.End();
         }
 
         public void NormalBallBreathing()
@@ -260,6 +303,8 @@ namespace code
         public void PointCheck(CharacterBallType characterBallType)
         {
             var characterBall = characterBallType == CharacterBallType.Player ? _playerBall : _aiBall;
+
+            // List<Ball> intersectingBalls = new List<Ball>();
             for (var i = _normalBallIndexStart; i < _allBalls.Count; ++i)
             {
                 var ball = _allBalls[i];

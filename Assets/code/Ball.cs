@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using code.QuadTree;
 using UnityEngine;
 
 namespace code
@@ -57,6 +59,7 @@ namespace code
             IsAlive = false;
             transform.gameObject.SetActive(false);
         }
+
 
     }
 }
