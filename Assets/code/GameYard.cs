@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Unity.Profiling;
 using UnityEngine;
 using Random = UnityEngine.Random;
 
@@ -110,9 +111,11 @@ namespace code
 
             _allBalls.Clear();
         }
-
+        
+        private static readonly ProfilerMarker SCreateNormalBallMarker = new ProfilerMarker("GameYard.CreateNormalBall");
         public void CreateNormalBall()
         {
+            SCreateNormalBallMarker.Begin();
             _playerPointsInfo.Clear();
             _aiPointsInfo.Clear();
             
@@ -202,6 +205,7 @@ namespace code
                 ball.BallId = _allBalls.Count;
                 _allBalls.Add(ball);
             }
+            SCreateNormalBallMarker.End();
         }
 
         public void NormalBallBreathing()
